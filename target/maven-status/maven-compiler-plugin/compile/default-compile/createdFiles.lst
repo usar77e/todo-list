@@ -1,0 +1,3 @@
+todoapp\exception\GlobalExceptionHandler.class
+todoapp\model\TaskStatus.class
+todoapp\service\TaskService.class

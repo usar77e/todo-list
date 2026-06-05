@@ -1,0 +1,11 @@
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\TodoManagerApplication.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\config\SwaggerConfig.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\service\TaskService.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\dto\TaskResponseDTO.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\controller\TaskController.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\dto\TaskRequestDTO.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\exception\GlobalExceptionHandler.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\exception\TaskNotFoundException.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\repository\TaskRepository.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\model\TaskStatus.java
+W:\obsidian\torre\proyectos\todo-list\todo_list\src\main\java\todoapp\model\Task.java
