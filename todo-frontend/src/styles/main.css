@@ -1,0 +1,151 @@
+/* ── Reset y base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+/* ── Layout principal ──────────────────────────────────────────────────────── */
+.app { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.app-header h1 { font-size: 1.8rem; }
+
+/* ── Botones ───────────────────────────────────────────────────────────────── */
+.btn-primary {
+  background: #4f46e5; color: #fff;
+  border: none; border-radius: 8px;
+  padding: .6rem 1.2rem; font-size: .95rem;
+  cursor: pointer; transition: background .2s;
+}
+.btn-primary:hover:not(:disabled) { background: #4338ca; }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #e5e7eb; color: #374151;
+  border: none; border-radius: 8px;
+  padding: .6rem 1.2rem; font-size: .95rem; cursor: pointer;
+}
+.btn-secondary:hover { background: #d1d5db; }
+
+/* ── Filtros ───────────────────────────────────────────────────────────────── */
+.filter-bar { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+
+.filter-btn {
+  border: 2px solid transparent; border-radius: 20px;
+  padding: .4rem .9rem; font-size: .85rem;
+  cursor: pointer; background: #fff; transition: all .2s;
+}
+.filter-btn .badge {
+  background: #e5e7eb; border-radius: 10px;
+  padding: .1rem .45rem; font-size: .75rem; margin-left: .3rem;
+}
+.filter-btn.active, .filter-btn:hover { border-color: #4f46e5; background: #eef2ff; }
+
+/* ── Grid de tarjetas ──────────────────────────────────────────────────────── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Tarjeta ───────────────────────────────────────────────────────────────── */
+.task-card {
+  background: #fff; border-radius: 12px;
+  padding: 1rem; border-left: 4px solid #d1d5db;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: transform .15s;
+}
+.task-card:hover { transform: translateY(-2px); }
+.task-card.pendiente   { border-left-color: #f59e0b; }
+.task-card.en-progreso { border-left-color: #3b82f6; }
+.task-card.completada  { border-left-color: #10b981; opacity: .8; }
+
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
+.card-actions { display: flex; gap: .35rem; }
+
+.btn-icon {
+  width: 28px; height: 28px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: .85rem; transition: background .15s;
+}
+.btn-complete { background: #d1fae5; color: #065f46; }
+.btn-complete:hover { background: #a7f3d0; }
+.btn-edit     { background: #dbeafe; color: #1e40af; }
+.btn-edit:hover { background: #bfdbfe; }
+.btn-delete   { background: #fee2e2; color: #991b1b; }
+.btn-delete:hover { background: #fecaca; }
+
+.status-badge {
+  font-size: .7rem; font-weight: 600; text-transform: uppercase;
+  padding: .15rem .5rem; border-radius: 10px; letter-spacing: .03em;
+}
+.status-badge.pendiente   { background: #fef3c7; color: #92400e; }
+.status-badge.en-progreso { background: #dbeafe; color: #1e40af; }
+.status-badge.completada  { background: #d1fae5; color: #065f46; }
+
+.card-title { font-size: 1rem; font-weight: 600; margin-bottom: .3rem; }
+.card-desc  { font-size: .85rem; color: #6b7280; margin-bottom: .6rem; }
+.card-date  { font-size: .75rem; color: #9ca3af; margin-top: .5rem; }
+
+.status-select {
+  width: 100%; padding: .3rem .5rem; border: 1px solid #e5e7eb;
+  border-radius: 6px; font-size: .82rem; background: #f9fafb;
+  cursor: pointer; margin-top: .4rem;
+}
+
+/* ── Estados de la lista ───────────────────────────────────────────────────── */
+.state-msg {
+  text-align: center; padding: 3rem 1rem;
+  color: #6b7280; font-size: 1rem; border-radius: 12px;
+  background: #fff;
+}
+.state-msg.error { color: #dc2626; background: #fee2e2; }
+
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid #e5e7eb; border-top-color: #4f46e5;
+  border-radius: 50%; animation: spin .7s linear infinite;
+  vertical-align: middle; margin-right: .4rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: #fff; border-radius: 14px;
+  padding: 1.8rem; width: 100%; max-width: 440px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+.modal h2 { margin-bottom: 1.2rem; font-size: 1.2rem; }
+
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .3rem; }
+.field input, .field textarea {
+  width: 100%; padding: .55rem .75rem;
+  border: 1.5px solid #e5e7eb; border-radius: 8px;
+  font-size: .95rem; font-family: inherit; resize: vertical;
+  transition: border-color .15s;
+}
+.field input:focus, .field textarea:focus {
+  outline: none; border-color: #4f46e5;
+}
+.form-error { color: #dc2626; font-size: .85rem; margin-bottom: .8rem; }
+.form-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.2rem; }
+
+/* ── Animaciones de lista ──────────────────────────────────────────────────── */
+.task-enter-active, .task-leave-active { transition: all .3s ease; }
+.task-enter-from { opacity: 0; transform: translateY(-10px); }
+.task-leave-to   { opacity: 0; transform: scale(.95); }

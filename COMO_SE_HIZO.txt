@@ -1,0 +1,226 @@
+════════════════════════════════════════════════════════════════════════════════
+  CÓMO SE CONSTRUYÓ ESTE PROYECTO — GUÍA DE REPLICACIÓN
+  To-Do List | Spring Boot 3 + Vue 3 + Vite
+════════════════════════════════════════════════════════════════════════════════
+
+IDEA GENERAL
+────────────
+El proyecto tiene dos partes completamente independientes:
+
+  BACKEND  → carpeta raíz del repo  (Java / Spring Boot / H2)
+  FRONTEND → carpeta todo-frontend/ (JavaScript / Vue 3 / Vite)
+
+Cada una tiene su propio servidor:
+  Backend  corre en http://localhost:8080
+  Frontend corre en http://localhost:5173
+
+El frontend llama al backend por HTTP (REST/JSON). Son dos proyectos,
+dos procesos, dos carpetas. Se comunican a través de la red local.
+
+
+════════════════════════════════════════════════════════════════════════════════
+PARTE 1 — BACKEND (Spring Boot)
+════════════════════════════════════════════════════════════════════════════════
+
+HERRAMIENTAS USADAS
+───────────────────
+  Java 17               → lenguaje de programación
+  Spring Boot 3.2.1     → framework que facilita crear APIs REST
+  H2 Database           → base de datos SQL que vive en un archivo .mv.db
+                          (como un .txt pero con estructura de tabla)
+  Lombok                → genera código repetitivo (getters, setters, etc.)
+                          con simples anotaciones como @Data
+  Spring Validation     → valida los datos que llegan en los requests
+  SpringDoc / Swagger   → genera documentación interactiva de la API en
+                          http://localhost:8080/swagger-ui.html
+
+CÓMO REPLICAR EL BACKEND
+─────────────────────────
+1. En Spring Initializr (https://start.spring.io) seleccionar:
+   - Project: Maven
+   - Language: Java 17
+   - Spring Boot: 3.2.x
+   - Dependencies: Spring Web, Spring Data JPA, H2, Lombok, Validation
+
+2. Descargar y descomprimir el ZIP generado.
+
+3. La estructura de paquetes seguida fue:
+   src/main/java/todoapp/
+     ├── TodoManagerApplication.java   ← punto de entrada (main)
+     ├── config/
+     │   ├── CorsConfig.java           ← permite llamadas desde Vue
+     │   └── SwaggerConfig.java        ← configuración de Swagger (vacío por ahora)
+     ├── model/
+     │   ├── Task.java                 ← clase que mapea la tabla "tasks"
+     │   └── TaskStatus.java           ← enum con los 3 estados posibles
+     ├── repository/
+     │   └── TaskRepository.java       ← acceso a la BD (Spring lo implementa solo)
+     ├── service/
+     │   └── TaskService.java          ← lógica de negocio
+     ├── controller/
+     │   └── TaskController.java       ← endpoints REST (rutas HTTP)
+     ├── dto/
+     │   ├── TaskRequestDTO.java       ← forma de los datos que llegan del cliente
+     │   └── TaskResponseDTO.java      ← forma de los datos que se envían al cliente
+     └── exception/
+         ├── TaskNotFoundException.java      ← error personalizado (404)
+         └── GlobalExceptionHandler.java     ← captura excepciones y devuelve JSON
+
+4. Configurar src/main/resources/application.yml:
+   - Base de datos H2 en archivo (jdbc:h2:file:./data/tododb)
+     Con "file:" los datos persisten entre reinicios del servidor.
+     Con "mem:" los datos se pierden al detener.
+   - ddl-auto: update → Hibernate crea/actualiza las tablas automáticamente
+   - h2-console habilitada para inspeccionar los datos visualmente
+
+5. Añadir CorsConfig.java para que el navegador acepte las peticiones
+   del frontend (que viene de localhost:5173).
+   Sin este archivo, el navegador bloquea las respuestas por CORS.
+
+ENDPOINTS DISPONIBLES
+─────────────────────
+  GET    /api/tasks                   → lista todas las tareas
+  GET    /api/tasks?status=PENDIENTE  → filtra por estado
+  GET    /api/tasks/{id}              → una tarea por ID
+  POST   /api/tasks                   → crear tarea nueva
+  PUT    /api/tasks/{id}              → editar título y descripción
+  PATCH  /api/tasks/{id}/status       → cambiar estado (cualquier valor)
+  PATCH  /api/tasks/{id}/complete     → atajo para marcar COMPLETADA
+  DELETE /api/tasks/{id}              → eliminar
+
+Estados válidos: PENDIENTE | EN_PROGRESO | COMPLETADA
+
+FLUJO DE UNA PETICIÓN (ejemplo: crear tarea)
+─────────────────────────────────────────────
+  Cliente (Vue) envía:
+    POST /api/tasks
+    Body: { "title": "Comprar leche", "description": "2 litros" }
+
+  Spring Boot:
+  1. TaskController recibe el request → @PostMapping
+  2. @Valid valida el body contra TaskRequestDTO (título no vacío, max 100 chars)
+  3. Si falla la validación → GlobalExceptionHandler devuelve HTTP 400
+  4. TaskController llama a taskService.createTask(request)
+  5. TaskService crea un objeto Task, le pone status=PENDIENTE, llama a
+     taskRepository.save(task)
+  6. Spring Data JPA ejecuta INSERT INTO tasks(...) en H2
+  7. Devuelve el Task guardado (con id, fechas asignadas por Hibernate)
+  8. TaskService convierte Task → TaskResponseDTO
+  9. TaskController devuelve HTTP 201 con el DTO como JSON
+
+CÓMO INICIAR EL BACKEND
+────────────────────────
+  Desde la raíz del proyecto:
+    mvn spring-boot:run
+  O en Eclipse/IntelliJ: Run → TodoManagerApplication.java
+
+  Verificar:  http://localhost:8080/swagger-ui.html
+
+
+════════════════════════════════════════════════════════════════════════════════
+PARTE 2 — FRONTEND (Vue 3 + Vite)
+════════════════════════════════════════════════════════════════════════════════
+
+HERRAMIENTAS USADAS
+───────────────────
+  Node.js 18+           → entorno de ejecución de JavaScript
+  npm                   → gestor de paquetes (viene con Node)
+  Vite 5                → bundler/servidor de desarrollo ultrarrápido
+  Vue 3                 → framework de UI reactiva
+  axios                 → librería para hacer peticiones HTTP
+
+POR QUÉ PROYECTO SEPARADO (opción B)
+──────────────────────────────────────
+  - El backend y el frontend tienen ciclos de vida independientes.
+    Puedes reiniciar Spring sin recargar Vue y viceversa.
+  - Vue tiene su propio servidor con hot-reload (cambias un .vue y el
+    navegador se actualiza en milisegundos, sin recompilar Java).
+  - La API queda lista para ser consumida por cualquier cliente futuro
+    (app móvil, otro frontend, etc.).
+  - Es la arquitectura estándar en proyectos profesionales modernos.
+
+CÓMO REPLICAR EL FRONTEND DESDE CERO
+──────────────────────────────────────
+1. Tener Node.js instalado (https://nodejs.org → versión LTS)
+
+2. Abrir terminal en la carpeta donde quieras crear el proyecto:
+   npm create vue@latest todo-frontend
+
+   El asistente pregunta:
+   - TypeScript: No (para simplificar el aprendizaje)
+   - Router:     No (solo una página, no necesitamos rutas)
+   - Pinia:      No (el composable useTasks.js cumple esa función)
+   - Vitest:     No (sin tests por ahora)
+   - ESLint:     Opcional
+
+3. cd todo-frontend && npm install
+
+4. Instalar axios:
+   npm install axios
+
+5. La estructura final del proyecto:
+   todo-frontend/
+     ├── package.json          ← dependencias y scripts
+     ├── vite.config.js        ← configuración de Vite (proxy incluido)
+     ├── index.html            ← HTML base (solo un div#app)
+     └── src/
+         ├── main.js           ← punto de entrada, monta App en #app
+         ├── App.vue           ← componente raíz, orquesta todo
+         ├── api/
+         │   └── taskApi.js    ← todas las llamadas HTTP centralizadas
+         ├── composables/
+         │   └── useTasks.js   ← estado reactivo + lógica de tareas
+         ├── components/
+         │   ├── TaskFilter.vue ← botones de filtro por estado
+         │   ├── TaskList.vue   ← contenedor de la lista + estados UI
+         │   ├── TaskCard.vue   ← tarjeta individual de una tarea
+         │   └── TaskForm.vue   ← modal para crear y editar tareas
+         └── styles/
+             └── main.css      ← todos los estilos de la app
+
+6. Configurar vite.config.js:
+   El proxy redirige /api/* a localhost:8080 durante desarrollo.
+   Esto significa que Vue llama a /api/tasks y Vite lo reenvía a
+   http://localhost:8080/api/tasks, evitando problemas de CORS en dev.
+
+CÓMO INICIAR EL FRONTEND
+─────────────────────────
+  cd todo-frontend
+  npm install          ← solo la primera vez
+  npm run dev
+
+  Abre: http://localhost:5173
+
+ORDEN DE INICIO
+───────────────
+  1. Primero inicia el backend (puerto 8080)
+  2. Luego inicia el frontend (puerto 5173)
+  El frontend no requiere el backend para cargar, pero sí para mostrar datos.
+
+
+════════════════════════════════════════════════════════════════════════════════
+DECISIONES DE DISEÑO IMPORTANTES
+════════════════════════════════════════════════════════════════════════════════
+
+¿Por qué DTOs en el backend?
+─────────────────────────────
+La entidad Task es el objeto interno de la base de datos.
+El DTO (Data Transfer Object) es el "contrato" con el cliente.
+Si mañana la entidad cambia internamente (nuevas columnas, relaciones),
+el DTO no cambia y el cliente no se rompe.
+TaskRequestDTO: lo que el cliente ENVÍA (sin id ni fechas)
+TaskResponseDTO: lo que el cliente RECIBE (con id y fechas)
+
+¿Por qué H2 en archivo y no MySQL/PostgreSQL?
+──────────────────────────────────────────────
+H2 no requiere instalar nada. Es perfecto para aprender y para
+prototipos. Cambiar a PostgreSQL en el futuro es trivial: cambiar
+el driver en pom.xml y la URL en application.yml.
+
+¿Por qué GlobalExceptionHandler?
+──────────────────────────────────
+Sin él, Spring devuelve errores en HTML o con el stack trace completo.
+Con él, todos los errores llegan al cliente como JSON estructurado,
+con timestamp, código HTTP y mensaje legible.
+
+════════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,434 @@
+════════════════════════════════════════════════════════════════════════════════
+  ARQUITECTURA DEL FRONTEND VUE 3
+  Qué existe, cómo se relaciona y por qué está ahí
+════════════════════════════════════════════════════════════════════════════════
+
+
+MAPA VISUAL DE COMPONENTES
+────────────────────────────
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  App.vue  (raíz — "el jefe")                            │
+  │                                                         │
+  │  usa composable → useTasks.js  (estado + lógica)        │
+  │                                                         │
+  │  ├── TaskFilter.vue    (barra de filtros)               │
+  │  ├── TaskList.vue      (contenedor de lista)            │
+  │  │    └── TaskCard.vue (tarjeta × N tareas)             │
+  │  └── TaskForm.vue      (modal crear/editar)             │
+  │                                                         │
+  │  todos llaman → taskApi.js  (HTTP hacia Spring Boot)    │
+  └─────────────────────────────────────────────────────────┘
+
+FLUJO DE DATOS (la regla más importante de Vue)
+────────────────────────────────────────────────
+  Los datos BAJAN por props     →  padre envía datos al hijo
+  Los eventos SUBEN por $emit   →  hijo notifica al padre
+
+  Nunca un hijo modifica directamente los datos del padre.
+  Esto hace que sea fácil saber de dónde viene cada cambio.
+
+  Ejemplo concreto:
+    App.vue tiene el array `tasks`
+    → lo pasa a TaskList.vue como prop
+    → TaskList lo pasa a cada TaskCard como prop
+    → TaskCard muestra el dato
+    → Usuario hace clic en "Eliminar"
+    → TaskCard emite @delete con el id
+    → TaskList reenvía @delete hacia arriba
+    → App.vue recibe el evento y llama a deleteTask(id)
+    → useTasks elimina del array
+    → Vue re-renderiza automáticamente la lista
+
+
+════════════════════════════════════════════════════════════════════════════════
+ARCHIVO POR ARCHIVO
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────
+package.json
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El "pom.xml" del frontend. Lista las dependencias y los scripts
+  npm que se pueden ejecutar.
+
+DEPENDENCIAS CLAVE:
+  "vue": "^3.4.0"
+    → El framework en sí. Proporciona ref(), computed(), onMounted(),
+      los componentes, el sistema de reactividad, etc.
+      Sin esto no existe nada.
+
+  "axios": "^1.6.0"
+    → Librería para peticiones HTTP. Alternativa más cómoda a fetch:
+      - Parsea JSON automáticamente (no hay que llamar .json())
+      - Lanza errores automáticamente si el servidor devuelve 4xx/5xx
+      - Permite crear instancias con baseURL y headers compartidos
+      ¿Por qué no usar fetch nativo? Podría usarse, pero axios
+      reduce el código repetitivo en cada llamada.
+
+DEV DEPENDENCIES (solo en desarrollo, no van al build final):
+  "@vitejs/plugin-vue": "^5.0.0"
+    → Plugin que le enseña a Vite a entender archivos .vue.
+      Un .vue tiene 3 secciones: <template>, <script>, <style>.
+      El navegador no entiende ese formato; Vite lo compila a JS puro.
+
+  "vite": "^5.0.0"
+    → Servidor de desarrollo + compilador.
+      En desarrollo: sirve los archivos con hot-reload instantáneo.
+      En producción: compila todo a archivos .js/.css optimizados.
+
+────────────────────────────────────────────────────────────────
+vite.config.js
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  Configuración de Vite. Solo dos cosas relevantes:
+
+1. plugins: [vue()]
+   → Activa el plugin que compila los archivos .vue.
+     Sin esta línea, Vite no sabe qué hacer con ellos.
+
+2. server.proxy
+   → Durante desarrollo, cuando Vue llama a /api/tasks,
+     Vite intercepta esa petición y la redirige a
+     http://localhost:8080/api/tasks.
+     Esto evita errores CORS en desarrollo porque para el
+     navegador, frontend y backend parecen estar en el mismo origen.
+
+   En producción (build) este proxy no existe. El servidor real
+   (nginx, Apache, etc.) se encarga del enrutamiento.
+
+────────────────────────────────────────────────────────────────
+index.html
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El único HTML de toda la aplicación. Contiene:
+    <div id="app"></div>  → aquí Vue "inyecta" toda la interfaz
+    <script type="module" src="/src/main.js">  → carga Vue
+
+  type="module" es necesario para que el navegador entienda
+  la sintaxis de import/export de JavaScript moderno.
+
+────────────────────────────────────────────────────────────────
+src/main.js
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El punto de entrada de la aplicación. Hace exactamente una cosa:
+  conectar App.vue con el div#app del HTML.
+
+  createApp(App)  → instancia la aplicación con App como raíz
+  .mount('#app')  → la renderiza dentro del div#app
+
+  Si en el futuro necesitas añadir plugins globales (router, pinia,
+  i18n), se añaden aquí con .use(plugin) antes de .mount().
+
+────────────────────────────────────────────────────────────────
+src/api/taskApi.js
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  Capa de acceso a datos del frontend. Todos los fetch/axios del
+  proyecto viven aquí. Ningún componente Vue hace peticiones HTTP
+  directamente.
+
+POR QUÉ ESTÁ SEPARADO:
+  1. Si la URL cambia → se cambia en un solo sitio
+  2. Los componentes quedan limpios (solo presentación y eventos)
+  3. Fácil de reemplazar con un mock durante pruebas
+
+RELACIONES:
+  Es usado por → useTasks.js (el composable)
+  Llama a      → Spring Boot API en /api/tasks
+
+FUNCIONES EXPORTADAS:
+  getTasks(status)        → GET /api/tasks o GET /api/tasks?status=X
+  getTaskById(id)         → GET /api/tasks/{id}
+  createTask(body)        → POST /api/tasks
+  updateTask(id, body)    → PUT /api/tasks/{id}
+  changeStatus(id, value) → PATCH /api/tasks/{id}/status?value=X
+  completeTask(id)        → PATCH /api/tasks/{id}/complete
+  deleteTask(id)          → DELETE /api/tasks/{id}
+
+────────────────────────────────────────────────────────────────
+src/composables/useTasks.js
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El "gestor de estado" de la aplicación. Contiene el array de
+  tareas y todas las operaciones sobre él.
+
+POR QUÉ EXISTE:
+  Sin este archivo, App.vue tendría que declarar el estado,
+  hacer las llamadas a la API y manejar loading/error todo junto.
+  Separarlo en un composable hace que App.vue sea más legible
+  y que la lógica sea reutilizable si mañana hay otra vista.
+
+CONCEPTOS CLAVE QUE USA:
+  ref(valor)
+    → Crea una variable reactiva. Cuando cambia su .value,
+      todos los componentes que la usan se re-renderizan.
+      Úsalo para: arrays, strings, booleans, números.
+
+  computed(() => expresión)
+    → Valor derivado que se recalcula automáticamente cuando
+      cambian sus dependencias. Úsalo cuando un valor depende
+      de datos reactivos (en lugar de recalcular en el template).
+      Ejemplo: counts deriva de tasks; si tasks cambia, counts
+      se actualiza solo.
+
+ESTADO QUE MANEJA:
+  tasks        → array de TaskResponseDTO (lo que viene del backend)
+  loading      → boolean, true mientras hay petición en vuelo
+  error        → string | null, mensaje de error si algo falla
+  activeFilter → el filtro activo ('PENDIENTE' | null | etc.)
+  counts       → computed: conteo de tareas por estado
+
+RELACIONES:
+  Usa      → taskApi.js (para las peticiones HTTP)
+  Es usado → App.vue (que distribuye el estado a los hijos)
+
+────────────────────────────────────────────────────────────────
+src/App.vue
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El componente raíz. Es el "director de orquesta":
+  - Tiene acceso al estado completo (via useTasks)
+  - Pasa datos hacia abajo (props)
+  - Reacciona a eventos de los hijos (handlers)
+  - Controla la visibilidad del modal
+
+POR QUÉ CONCENTRA LA LÓGICA:
+  Patrón "lifting state up": el estado vive en el nivel más
+  alto que lo necesite. Todos los componentes hijos son "tontos"
+  (solo muestran y emiten). App.vue es el único que sabe qué
+  hacer con los eventos.
+
+HOOKS DE CICLO DE VIDA:
+  onMounted(() => loadTasks())
+    → Se ejecuta una sola vez cuando Vue termina de insertar
+      el componente en el DOM. Es el momento correcto para
+      cargar los datos iniciales (equivalente al constructor
+      en el sentido de "inicialización").
+
+ESTRUCTURA DEL TEMPLATE:
+  <header>        → título y botón "Nueva tarea"
+  <TaskFilter>    → recibe counts y activeFilter, emite filter-change
+  <TaskList>      → recibe tasks/loading/error, emite edit/delete/etc.
+  <TaskForm>      → solo se monta cuando showForm=true (v-if)
+
+────────────────────────────────────────────────────────────────
+src/components/TaskFilter.vue
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  Los 4 botones de filtro (Todas / Pendientes / En progreso / Completadas).
+  Cada botón muestra un badge con el conteo de tareas.
+
+PROPS QUE RECIBE (de App.vue):
+  activeFilter → qué filtro está activo (para resaltar el botón)
+  counts       → objeto con el total y conteo por estado
+
+EVENTOS QUE EMITE (hacia App.vue):
+  filter-change(valor) → cuando el usuario hace clic en un filtro
+
+POR QUÉ ESTÁ SEPARADO:
+  La barra de filtros es una unidad visual y lógica independiente.
+  Separarlo permite cambiar su diseño o comportamiento sin tocar
+  la lista de tareas.
+
+────────────────────────────────────────────────────────────────
+src/components/TaskList.vue
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El contenedor de la lista. Su responsabilidad es decidir QUÉ mostrar:
+    - Spinner mientras carga
+    - Mensaje de error si falló
+    - Mensaje "vacío" si no hay tareas
+    - La grilla de tarjetas si hay datos
+
+  Usa TransitionGroup para animar la entrada/salida de tarjetas.
+
+PROPS QUE RECIBE (de App.vue):
+  tasks / loading / error / activeFilter
+
+EVENTOS QUE EMITE (re-emite lo que viene de TaskCard hacia App.vue):
+  edit / delete / complete / status-change
+
+POR QUÉ ESTÁ SEPARADO:
+  Sin este componente, App.vue tendría toda la lógica de
+  estados UI (cargando/error/vacío) mezclada con la lógica
+  de negocio. Separarlo hace cada parte más pequeña y enfocada.
+
+RELACIÓN CON TASKCARD:
+  TaskList itera el array tasks con v-for y renderiza un TaskCard
+  por cada elemento. Así TaskCard no sabe cuántas tareas hay;
+  solo sabe renderizar una.
+
+────────────────────────────────────────────────────────────────
+src/components/TaskCard.vue
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  La tarjeta visual de una sola tarea. Muestra título, descripción,
+  estado, fecha y los botones de acción.
+
+PROPS QUE RECIBE (de TaskList.vue):
+  task → el objeto completo { id, title, description, status, createdAt, updatedAt }
+
+EVENTOS QUE EMITE (hacia TaskList.vue, que los reenvía a App.vue):
+  edit(task)              → usuario clic en ✎
+  delete(id)              → usuario clic en ✕
+  complete(id)            → usuario clic en ✓
+  status-change(id, val)  → usuario cambia el select de estado
+
+COMPUTED USADOS:
+  statusLabel → texto legible del estado ('PENDIENTE' → 'Pendiente')
+  statusClass → clase CSS para el color ('PENDIENTE' → 'pendiente')
+  Usar computed aquí evita repetir la lógica en el template y
+  permite que el cambio de estado actualice el color automáticamente.
+
+POR QUÉ ESTÁ SEPARADO:
+  - Encapsula el HTML de una tarjeta (reutilizable en otras vistas)
+  - Si mañana cambias el diseño de la tarjeta, solo editas este archivo
+  - TaskList queda limpio: solo itera, no tiene HTML de tarjeta
+
+────────────────────────────────────────────────────────────────
+src/components/TaskForm.vue
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  El modal con el formulario para crear o editar una tarea.
+  Mismo formulario para ambos casos — la diferencia es si llega
+  taskToEdit con datos o como null.
+
+PROPS QUE RECIBE (de App.vue):
+  taskToEdit → null (nueva tarea) | objeto Task (editar)
+  loading    → para deshabilitar el botón mientras guarda
+
+EVENTOS QUE EMITE (hacia App.vue):
+  close      → usuario cancela o hace clic fuera del modal
+  save(data) → usuario confirma con los datos del formulario
+
+CONCEPTOS CLAVE:
+  v-model en inputs
+    → Enlace bidireccional. Cuando el usuario escribe,
+      form.title se actualiza. Cuando form.title cambia
+      por código (precargar para edición), el input muestra el valor.
+      Es azúcar sintáctico sobre :value + @input.
+
+  watch(() => props.taskToEdit, callback, { immediate: true })
+    → Observa cambios en el prop taskToEdit.
+      "immediate: true" significa que también se ejecuta al montar
+      el componente (no solo cuando cambia después).
+      Esto permite precargar el formulario cuando el padre pasa
+      una tarea para editar.
+
+  @click.self en el overlay
+    → El modificador .self hace que el evento solo se dispare
+      si el clic fue exactamente en ese elemento, no en sus hijos.
+      Así cerrar el modal al clic en el fondo oscuro no se dispara
+      cuando el usuario hace clic dentro del modal blanco.
+
+────────────────────────────────────────────────────────────────
+src/styles/main.css
+────────────────────────────────────────────────────────────────
+QUÉ ES:
+  Todos los estilos de la aplicación en un solo archivo.
+  Se importa en main.js y aplica globalmente.
+
+POR QUÉ NO ESTÁN EN CADA .VUE (scoped):
+  Vue permite <style scoped> dentro de cada componente.
+  Para este proyecto de aprendizaje, un solo CSS global es más
+  simple. En proyectos grandes, scoped evita que los estilos
+  de un componente afecten a otros involuntariamente.
+
+CLASES DE COLOR POR ESTADO:
+  .pendiente   → amarillo (#f59e0b)
+  .en-progreso → azul    (#3b82f6)
+  .completada  → verde   (#10b981)
+  Estas mismas clases se aplican en la tarjeta, el badge y el filtro.
+
+TRANSICIONES:
+  .task-enter-active / .task-leave-active
+    → Van en pareja con <TransitionGroup name="task"> en TaskList.vue.
+      Vue busca clases CSS con el prefijo del name="task" y las aplica
+      automáticamente cuando un elemento entra o sale del DOM.
+
+
+════════════════════════════════════════════════════════════════════════════════
+TABLA DE DEPENDENCIAS ENTRE ARCHIVOS
+════════════════════════════════════════════════════════════════════════════════
+
+  Archivo              │ Usa a                    │ Lo usa
+  ─────────────────────┼──────────────────────────┼────────────────────
+  taskApi.js           │ axios                    │ useTasks.js
+  useTasks.js          │ taskApi.js, Vue (ref,     │ App.vue
+                       │ computed)                │
+  App.vue              │ useTasks.js,              │ (es la raíz)
+                       │ TaskFilter, TaskList,    │
+                       │ TaskForm                 │
+  TaskFilter.vue       │ Vue                      │ App.vue
+  TaskList.vue         │ TaskCard.vue, Vue         │ App.vue
+  TaskCard.vue         │ Vue (computed)            │ TaskList.vue
+  TaskForm.vue         │ Vue (ref, watch,          │ App.vue
+                       │ computed)                │
+  main.css             │ (solo CSS)                │ main.js (import)
+  main.js              │ Vue, App.vue, main.css    │ index.html (script)
+  vite.config.js       │ vite, @vitejs/plugin-vue  │ Vite (al iniciar)
+  package.json         │ (declarativo)             │ npm
+
+
+════════════════════════════════════════════════════════════════════════════════
+CONCEPTOS DE VUE 3 USADOS EN ESTE PROYECTO
+════════════════════════════════════════════════════════════════════════════════
+
+ref(valor)
+  Crea una referencia reactiva. Se accede/modifica con .value en JS,
+  pero en el template Vue lo desenvuelve automáticamente.
+  Cuándo usarlo: para cualquier valor que Vue deba observar.
+
+computed(() => expr)
+  Valor derivado de datos reactivos. Se cachea: solo se recalcula
+  cuando cambia alguna dependencia. Más eficiente que calcular en
+  el template directamente.
+
+watch(fuente, callback)
+  Observa una fuente reactiva y ejecuta el callback cuando cambia.
+  Diferencia con computed: watch tiene efectos secundarios
+  (puede hacer llamadas HTTP, actualizar el DOM, etc.).
+
+onMounted(callback)
+  Hook de ciclo de vida. Se ejecuta después de que Vue insertó
+  el componente en el DOM. Ideal para cargar datos iniciales.
+
+defineProps({ nombre: tipo })
+  Declara qué datos recibe un componente del exterior.
+  Los props son de solo lectura dentro del componente.
+
+defineEmits(['nombre-evento'])
+  Declara los eventos que el componente puede enviar al padre.
+  Se disparan con emit('nombre-evento', datos).
+
+v-for="item in lista" :key="item.id"
+  Renderiza un elemento por cada ítem del array.
+  :key es obligatorio: permite a Vue actualizar solo el nodo
+  que cambió en lugar de re-renderizar toda la lista.
+
+v-if / v-else-if / v-else
+  Renderizado condicional. Vue añade o elimina el elemento del DOM.
+  Diferencia con v-show: v-if destruye el componente (útil cuando
+  tiene efectos secundarios); v-show solo cambia display:none.
+
+v-model="variable"
+  Enlace bidireccional para inputs. Equivale a:
+  :value="variable" @input="variable = $event.target.value"
+
+@evento="handler" o @evento.modificador
+  Escucha eventos DOM o del componente hijo.
+  Modificadores comunes:
+    .prevent → llama event.preventDefault()
+    .self    → solo dispara si el clic fue en el elemento exacto
+
+:prop="valor" (binding dinámico)
+  Pasa un valor JS como prop/atributo. Sin : pasa como string literal.
+  :class="objeto" → añade/quita clases condicionalmente.
+
+TransitionGroup name="x"
+  Componente de Vue para animar listas. Busca clases CSS con prefijo
+  "x-enter-*" y "x-leave-*" y las aplica automáticamente.
+
+════════════════════════════════════════════════════════════════════════════════
